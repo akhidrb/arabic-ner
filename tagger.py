@@ -1,8 +1,16 @@
+import time
+
+import pytesseract
 import torch
+from PIL import Image
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 from transformers import pipeline
+
 from helpers import split_sentences
-import time
+
+# extract text from image
+image = Image.open('files/cr-1.png')
+text = pytesseract.image_to_string(image, lang='ara')
 
 # Load the model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -13,7 +21,6 @@ nlp = pipeline("ner", model=model, tokenizer=tokenizer)
 
 # Tag the text
 start_time = time.time()
-text = 'رغم الهدنة .. معارك قره باغ متواصلة وأذربيجان تعلن سيطرتها على مزيد من القرى'
 sentences = split_sentences(text)
 
 annotations = nlp(sentences)
@@ -28,5 +35,19 @@ for sentence in annotations:
       entities.append(item["word"])
       tags.append(item["entity"])
 
+# get persons from item tags
+
+item_labels = []
 for item, label in zip(entities, tags):
-  print(item + "\t" + label)
+  if "B-PERSON" in label:
+    item_labels.append(item)
+  elif "I-PERSON" in label:
+    item_labels[-1] += f" {item}"
+
+names = ''
+for item in item_labels:
+  names += f"{item}\n"
+
+output_file_path = 'output.txt'
+with open(output_file_path, 'w', encoding='utf-8') as file:
+  file.write(names)
